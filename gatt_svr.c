@@ -18,8 +18,8 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
 #include "services/gap/ble_svc_gap.h"
@@ -29,13 +29,16 @@
 
 /*** Maximum number of characteristics with the notify flag ***/
 #define MAX_NOTIFY 5
-
+// Add these declarations at the top
+//extern void nimble_server_on_read(uint16_t conn_handle, uint16_t attr_handle, uint8_t *data, size_t len);
+extern void nimble_server_on_write(uint16_t conn_handle, uint16_t attr_handle, uint8_t *data, size_t len);
+extern void nimble_server_on_receive(uint16_t conn_handle, uint16_t attr_handle, char* data, size_t len);
 static const ble_uuid128_t gatt_svr_svc_uuid =
     BLE_UUID128_INIT(0x2d, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12,
                      0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59);
 
 /* A characteristic that can be subscribed to */
-static uint8_t gatt_svr_chr_val;
+static char  gatt_svr_chr_val[256];
 static uint16_t gatt_svr_chr_val_handle;
 static const ble_uuid128_t gatt_svr_chr_uuid =
     BLE_UUID128_INIT(0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11,
@@ -94,9 +97,8 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     },
 };
 
-static int
-gatt_svr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
-               void *dst, uint16_t *len)
+static int gatt_svr_write(struct os_mbuf *om, uint16_t min_len, 
+                        uint16_t max_len, void *dst, uint16_t *len)
 {
     uint16_t om_len;
     int rc;
@@ -134,6 +136,9 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
 
     switch (ctxt->op) {
     case BLE_GATT_ACCESS_OP_READ_CHR:
+        // Trigger on_read automation
+        ESP_LOGI("BLE", "on_read triggered for conn_handle=%d, attr_handle=%d", conn_handle, attr_handle);
+
         if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
             MODLOG_DFLT(INFO, "Characteristic read; conn_handle=%d attr_handle=%d\n",
                         conn_handle, attr_handle);
@@ -149,9 +154,9 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
         goto unknown;
-
+/*
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
-        if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+	if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
             MODLOG_DFLT(INFO, "Characteristic write; conn_handle=%d attr_handle=%d",
                         conn_handle, attr_handle);
         } else {
@@ -165,13 +170,46 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof(gatt_svr_chr_val),
                                 &gatt_svr_chr_val, NULL);
             ble_gatts_chr_updated(attr_handle);
-            MODLOG_DFLT(INFO, "Notification/Indication scheduled for "
-                        "all subscribed peers.\n");
+
+        // Example: Write a response back to the client
+            uint8_t response_data[] = {0x01, 0x02, 0x03};
+            nimble_server_write(conn_handle, attr_handle, response_data, sizeof(response_data));
+
+            MODLOG_DFLT(INFO, "Notification/Indication scheduled for all subscribed peers.\n");
             return rc;
         }
-        goto unknown;
+    goto unknown;
+*/
+
+
+    case BLE_GATT_ACCESS_OP_WRITE_CHR:
+        if (attr_handle == gatt_svr_chr_val_handle) {
+            // Buffer to store received string
+            char str_buf[128];
+            uint16_t len;
+
+            rc = gatt_svr_write(ctxt->om, 1, sizeof(str_buf)-1, // Keep space for null terminator
+                                str_buf, &len);
+
+            if (rc == 0) {
+                str_buf[len] = '\0'; // Null-terminate the received data
+
+                nimble_server_on_receive(conn_handle, attr_handle, str_buf, sizeof(str_buf));
+                MODLOG_DFLT(INFO, "Received string: %s", str_buf);
+
+            }
+
+            ble_gatts_chr_updated(attr_handle);
+            return rc;
+        }
+
+
+
 
     case BLE_GATT_ACCESS_OP_READ_DSC:
+        // Trigger on_receive automation for descriptor reads
+        ESP_LOGI("BLE", "on_receive triggered for descriptor read, conn_handle=%d, attr_handle=%d", conn_handle, attr_handle);
+
         if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
             MODLOG_DFLT(INFO, "Descriptor read; conn_handle=%d attr_handle=%d\n",
                         conn_handle, attr_handle);
@@ -189,6 +227,8 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
         goto unknown;
 
     case BLE_GATT_ACCESS_OP_WRITE_DSC:
+        // Trigger on_receive automation for descriptor writes
+        ESP_LOGI("BLE", "on_receive triggered for descriptor write, conn_handle=%d, attr_handle=%d", conn_handle, attr_handle);
         goto unknown;
 
     default:
@@ -202,6 +242,7 @@ unknown:
     assert(0);
     return BLE_ATT_ERR_UNLIKELY;
 }
+
 
 void
 gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
