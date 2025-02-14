@@ -39,6 +39,9 @@ CONF_ON_USER_COMMAND = "on_user_command_received"
 CONF_ON_USER_SELECTED = "on_user_selected"
 CONF_START_ADVERTISING = "start_advertising"
 CONF_STOP_ADVERTISING = "stop_advertising"
+CONF_ON_CLIENT_CONNECTED = "on_client_connected"
+
+
 #SECURITY_MODE_NONE = "none"
 #SECURITY_MODE_HOTP = "hotp"
 #SECURITY_MODE_TOTP = "totp"
@@ -63,10 +66,11 @@ def validate_secret_pin(value):
 #validate_security_mode = cv.one_of(*SECURITY_MODES.keys(), lower=True)
 
 #Triggers
+ClientConnectedTrigger = nimble_server_ns.class_("ClientConnectedTrigger", automation.Trigger.template(cg.std_string))
 PinpadAcceptedTrigger = nimble_server_ns.class_("PinpadAcceptedTrigger", automation.Trigger.template())
 PinpadRejectedTrigger = nimble_server_ns.class_("PinpadRejectedTrigger", automation.Trigger.template())
 PinpadUserSelectedTrigger = nimble_server_ns.class_("PinpadUserSelectedTrigger", automation.Trigger.template())
-PinpadUserCommandTrigger = nimble_server_ns.class_("PinpadUserCommandTrigger", automation.Trigger.template())
+PinpadUserCommandTrigger = nimble_server_ns.class_("PinpadUserCommandTrigger", automation.Trigger.template(cg.std_string, cg.std_string))
 
 # Define actions for start_advertising and stop_advertising
 StartAdvertisingAction = nimble_server_ns.class_("StartAdvertisingAction", automation.Action)
@@ -151,11 +155,15 @@ CONFIG_SCHEMA = cv.Schema({
         {
             cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(PinpadUserCommandTrigger),
         }
-    ),        
+    ),
+    cv.Optional(CONF_ON_CLIENT_CONNECTED): automation.validate_automation(
+	{
+	    cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ClientConnectedTrigger),
+	}),
+
     cv.Optional(CONF_STATUS_INDICATOR): cv.use_id(output.BinaryOutput),
     cv.Optional(CONF_START_ADVERTISING, default=True): cv.boolean,  # Add this line
     cv.Optional(CONF_STOP_ADVERTISING, default=False): cv.boolean,  # Add this line
-
 
 
 
@@ -170,6 +178,9 @@ async def to_code(config):
 #        SECURITY_MODES[config[CONF_SECURITY_MODE]],
 #        config[CONF_SECRET_PASSCODE]
 #    ))
+    for conf in config.get(CONF_ON_CLIENT_CONNECTED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [(cg.std_string, "mac")], conf)
 
     for conf in config.get(CONF_ON_PINPAD_ACCEPTED, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
@@ -183,9 +194,11 @@ async def to_code(config):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [(cg.std_string, "user")], conf)
 
+
     for conf in config.get(CONF_ON_USER_COMMAND, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(cg.std_string, "cmd")], conf)
+        await automation.build_automation(trigger, [(cg.std_string, "mac"), (cg.std_string, "cmd")], conf)
+
 
     if CONF_STATUS_INDICATOR in config:
         status_indicator = await cg.get_variable(config[CONF_STATUS_INDICATOR])
