@@ -29,14 +29,16 @@ public:
   }
 };
 
-class PinpadUserCommandTrigger : public Trigger<std::string> {
+
+class PinpadUserCommandTrigger : public Trigger<std::string, std::string> {
 public:
     PinpadUserCommandTrigger(NIMBLEServer *pinpad) {
-        pinpad->add_on_user_command_callback([this](const std::string &cmd) {
-            this->trigger(cmd);
+        pinpad->add_on_user_command_callback([this](const std::string &mac, const std::string &cmd) {
+            this->trigger(mac, cmd);  // Trigger with both parameters
         });
     }
 };
+
 
 class PinpadUserSelectedTrigger : public Trigger<std::string> {
 public:
@@ -47,6 +49,14 @@ public:
   }
 };
 
+class ClientConnectedTrigger : public Trigger<std::string> {
+public:
+    ClientConnectedTrigger(NIMBLEServer *server) {
+        server->add_on_client_connected_callback([this](const std::string &mac) {
+            this->trigger(mac);
+        });
+    }
+};
 
 
 }  // namespace esp32_ble_pinpad
