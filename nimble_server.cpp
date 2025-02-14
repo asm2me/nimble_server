@@ -36,24 +36,33 @@ static uint8_t own_addr_type;
 extern "C" {
 
 
-    void nimble_server_on_receive(uint16_t conn_handle, uint16_t attr_handle, char * data, size_t len) 
-    {
-        if (esphome::nimble_server::NIMBLEServer::instance_  && 
-            esphome::nimble_server::NIMBLEServer::instance_->receive_callback_) 
-        {
-            MODLOG_DFLT(INFO, "++++++ nimble_server_on_receive: %s ",data);
-
-            esphome::nimble_server::NIMBLEServer::instance_->receive_callback_(data, len);
-
-            esphome::nimble_server::NIMBLEServer::instance_->cmd_id_ = data;
-            esphome::nimble_server::NIMBLEServer::instance_->user_command_callback_.call(esphome::nimble_server::NIMBLEServer::instance_->cmd_id_);
-
-
-        }
-    }
     void nimble_server_write(uint16_t conn_handle, uint16_t attr_handle, const uint8_t *data, size_t len) {
         if (NIMBLEServer::instance_ != nullptr) {
             NIMBLEServer::instance_->ble_write(conn_handle, attr_handle, data, len);
+        }
+    }
+
+    void nimble_server_on_receive(uint16_t conn_handle, uint16_t attr_handle, char *data, size_t len) {
+        if (NIMBLEServer::instance_ != nullptr && NIMBLEServer::instance_->receive_callback_) {
+            MODLOG_DFLT(INFO, "Received data: %.*s", len, data);
+
+            // Get connection details
+            struct ble_gap_conn_desc desc;
+            int rc = ble_gap_conn_find(conn_handle, &desc);
+            if (rc != 0) {
+                ESP_LOGE("BLE", "Connection not found for handle %d", conn_handle);
+                return;
+            }
+
+            // Format MAC address
+            char mac_str[18];
+            const uint8_t *addr = desc.peer_id_addr.val;
+            snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+                    addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
+
+            // Trigger callback with MAC and command
+            std::string cmd(data, len);
+            NIMBLEServer::instance_->user_command_callback_.call(std::string(mac_str), cmd);
         }
     }
 
@@ -63,14 +72,8 @@ extern "C" {
 
 
 
-
-
-
-
-
-
 NIMBLEServer* NIMBLEServer::instance_ = nullptr;
-static const char *tag = "NimBLE_BLE_Server";
+static const char *tag = "doorman1-0-6-BLE";
 
 
 void print_addr(const void* addr) {
@@ -109,11 +112,29 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
     int rc;
 
     switch (event->type) {
-    case BLE_GAP_EVENT_LINK_ESTAB:
+
+     case BLE_GAP_EVENT_LINK_ESTAB:
+
+        char mac_str[18];
+        if (event->link_estab.status == 0) {
+
+            rc = ble_gap_conn_find(event->link_estab.conn_handle, &desc);
+            assert(rc == 0);
+            bleprph_print_conn_desc(&desc);
+            // Publish MAC address
+            if (NIMBLEServer::instance_ != nullptr) {
+
+                const uint8_t *addr = desc.peer_id_addr.val;
+                snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+                         addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
+                NIMBLEServer::instance_->client_connected_callback_.call(std::string(mac_str));
+            }
+        }
+
         /* A new connection was established or a connection attempt failed. */
-        MODLOG_DFLT(INFO, "connection %s; status=%d ",
+        MODLOG_DFLT(INFO, "______ connection %s; status=%d %s _______",
                     event->link_estab.status == 0 ? "established" : "failed",
-                    event->link_estab.status);
+                    event->link_estab.status,mac_str);
         if (event->link_estab.status == 0) {
             rc = ble_gap_conn_find(event->link_estab.conn_handle, &desc);
             assert(rc == 0);
@@ -131,7 +152,7 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
         }
 
 #if MYNEWT_VAL(BLE_POWER_CONTROL)
-    bleprph_power_control(event->link_estab.conn_handle);
+	bleprph_power_control(event->link_estab.conn_handle);
 #endif
         return 0;
 
@@ -651,10 +672,6 @@ void NIMBLEServer::setup() {
 
     receive_callback_ = [this](std::string data, size_t len) {
         ESP_LOGD("nimble_server", "ON WRITE!.!.!.!");
-//        std::string text_value(data, len);
-//        for (auto *text_sensor : text_sensors_) {
-//            text_sensor->publish_state(text_value);
-//        }
 
     };
 
