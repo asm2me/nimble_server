@@ -34,15 +34,21 @@
 extern void nimble_server_on_write(uint16_t conn_handle, uint16_t attr_handle, uint8_t *data, size_t len);
 extern void nimble_server_on_receive(uint16_t conn_handle, uint16_t attr_handle, char* data, size_t len);
 static const ble_uuid128_t gatt_svr_svc_uuid =
-    BLE_UUID128_INIT(0x2d, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12,
-                     0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59);
+    BLE_UUID128_INIT(0x00, 0x00, 0x12, 0xac,
+                                          0x42, 0x02, 0x3d, 0xbd,
+                                          0xee, 0x11, 0x26, 0xe8,
+                                          0x7a, 0x93, 0x9e, 0x90);
+
 
 /* A characteristic that can be subscribed to */
 static char  gatt_svr_chr_val[256];
 static uint16_t gatt_svr_chr_val_handle;
 static const ble_uuid128_t gatt_svr_chr_uuid =
-    BLE_UUID128_INIT(0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11,
-                     0x22, 0x22, 0x22, 0x22, 0x33, 0x33, 0x33, 0x33);
+    BLE_UUID128_INIT(0x06, 0x00, 0x12, 0xac,
+                                          0x42, 0x02, 0x3d, 0xbd,
+                                          0xee, 0x11, 0x26, 0xe8,
+                                          0x7a, 0x93, 0x9e, 0x90);
+
 
 /* A custom descriptor */
 static uint8_t gatt_svr_dsc_val;
@@ -154,33 +160,6 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
         goto unknown;
-/*
-    case BLE_GATT_ACCESS_OP_WRITE_CHR:
-	if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-            MODLOG_DFLT(INFO, "Characteristic write; conn_handle=%d attr_handle=%d",
-                        conn_handle, attr_handle);
-        } else {
-            MODLOG_DFLT(INFO, "Characteristic write by NimBLE stack; attr_handle=%d",
-                        attr_handle);
-        }
-        uuid = ctxt->chr->uuid;
-        if (attr_handle == gatt_svr_chr_val_handle) {
-            rc = gatt_svr_write(ctxt->om,
-                                sizeof(gatt_svr_chr_val),
-                                sizeof(gatt_svr_chr_val),
-                                &gatt_svr_chr_val, NULL);
-            ble_gatts_chr_updated(attr_handle);
-
-        // Example: Write a response back to the client
-            uint8_t response_data[] = {0x01, 0x02, 0x03};
-            nimble_server_write(conn_handle, attr_handle, response_data, sizeof(response_data));
-
-            MODLOG_DFLT(INFO, "Notification/Indication scheduled for all subscribed peers.\n");
-            return rc;
-        }
-    goto unknown;
-*/
-
 
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
         if (attr_handle == gatt_svr_chr_val_handle) {
