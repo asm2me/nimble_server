@@ -1919,27 +1919,62 @@ nimble_server:
         
    
         ESP_LOGD("ble_adv", " _OPTION__1__________   - %d",second_char);
-              
-        if (second_char == 0) {
-          id(select_relay_on).state =id(selected_relay3);
-        } else if (second_char == 1) {
-          id(select_relay_on).state = id(selected_relay2);
-        } else if (second_char == 2) {
-          id(select_relay_on).state = id(selected_relay1);
-        } else if (second_char == 3) {
-          id(select_relay_on).state = id(selected_relay0);
-        } else if (second_char == 4) {
-          id(select_relay_on).state = id(selected_relay4);
-        } else if (second_char == 5) {
-          id(select_relay_on).state = id(selected_relay5);
-        } else if (second_char == 6) {
-          id(select_relay_on).state = id(selected_relay6);
-        } else if (second_char == 7) {
-          id(select_relay_on).state = id(selected_relay7);
-        }         
+        
 
+        switch (second_char) {
+            case 0:
+                id(select_relay_on).state = id(selected_relay3);
+                id(control_relay_toggle)->execute();
+                break;
+            case 1:
+                id(select_relay_on).state = id(selected_relay2);
+                id(control_relay_toggle)->execute();
+                break;
+            case 2:
+                id(select_relay_on).state = id(selected_relay1);
+                id(control_relay_toggle)->execute();
+                break;
+            case 3:
+                id(select_relay_on).state = id(selected_relay0);
+                id(control_relay_toggle)->execute();
+                break;
+            case 4:
+                id(select_relay_on).state = id(selected_relay4);
+                id(control_relay_toggle)->execute();
+                break;
+            case 5:
+                id(select_relay_on).state = id(selected_relay5);
+                id(control_relay_toggle)->execute();
+                break;
+            case 6:
+                id(select_relay_on).state = id(selected_relay6);
+                id(control_relay_toggle)->execute();
+                break;
+            case 7:
+                id(select_relay_on).state = id(selected_relay7);
+                id(control_relay_toggle)->execute();
+                break;
+            case 8:
+                id(select_relay_off).state = id(selected_relay0);
+                id(control_relay_off)->execute();
+
+                id(select_relay_off).state = id(selected_relay1);
+                id(control_relay_off)->execute();
+                id(select_relay_off).state = id(selected_relay4);
+                id(control_relay_off)->execute();
+                id(select_relay_off).state = id(selected_relay5);
+                id(control_relay_off)->execute();
+                id(select_relay_off).state = id(selected_relay6);
+                id(control_relay_off)->execute();
+                id(select_relay_off).state = id(selected_relay7);
+                id(control_relay_off)->execute();
+                break;
+            default:
+                // Optionally handle unexpected values of second_char.
+                break;
+        }
  
  
           
          // ESP_LOGD("ble_adv", " ___________________   - %d",id(select_relay_on).state);
-    - script.execute: control_relay_toggle
+    #- script.execute: control_relay_toggle
