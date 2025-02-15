@@ -1,3 +1,4 @@
+
 #VERSION  1.0.6.1
 #PINOUTS
 #39 ADC  MIC
@@ -1166,7 +1167,29 @@ script:
             id(relay_7).turn_off();
           } else if (id(select_relay_off).state == 0) {
             id(relay_0).turn_off();
-          }          
+          }        
+  - id: control_relay_toggle
+    then:
+      - lambda: |-
+          if (id(select_relay_on).state == 1) {
+            id(relay_1).toggle();
+          } else if (id(select_relay_on).state == 2) {
+            id(relay_2).toggle();
+          } else if (id(select_relay_on).state == 3) {
+            id(relay_3).toggle();
+          } else if (id(select_relay_on).state == 4) {
+            id(relay_4).toggle();
+          } else if (id(select_relay_on).state == 5) {
+            id(relay_5).toggle();
+          } else if (id(select_relay_on).state == 6) {
+            id(relay_6).toggle();
+          } else if (id(select_relay_on).state == 7) {
+            id(relay_7).toggle();
+          } else if (id(select_relay_on).state == 0) {
+            id(relay_0).toggle();
+          }      
+
+
   - id: control_relay_select
     then:
       - switch.turn_off: relay_0
@@ -1886,69 +1909,37 @@ nimble_server:
           ESP_LOGD("ble_SENSE", " -MAC REFUSED:    %s  but remote MAC is: %s", mac.c_str() ,id(stored_remote_mac).c_str() );
           return;
         }
-
+        if(first_char==1 && second_char==9)
+          {
+            id(OPTO_1).turn_on();
+            return;
+          }
         ESP_LOGD("ble_adv", " _CMD_______________   - %d",first_char);
         ESP_LOGD("ble_adv", " _OPTION____________   - %d",second_char);
         
-        if(first_char==1)
-        {
-            ESP_LOGD("ble_adv", " _OPTION__1__________   - %d",second_char);
-            
-            if (second_char == 0) {
-              id(relay_3).turn_on();
-            } else if (second_char == 1) {
-              id(relay_2).turn_on();
-            } else if (second_char == 2) {
-              id(relay_1).turn_on();
-            } else if (second_char == 3) {
-              id(relay_0).turn_on();
-            } else if (second_char == 4) {
-              id(relay_7).turn_on();
-            } else if (second_char == 5) {
-              id(relay_6).turn_on();
-            } else if (second_char == 6) {
-              id(relay_5).turn_on();
-            } else if (second_char == 7) {
-              id(relay_4).turn_on();
-            } else if (second_char == 8) {
-              id(relay_0).turn_on();
-              id(relay_1).turn_on();
-              id(relay_2).turn_on();
-              id(relay_3).turn_on();
-              id(relay_4).turn_on();
-              id(relay_5).turn_on();
-              id(relay_6).turn_on();
-              id(relay_7).turn_on();
+   
+        ESP_LOGD("ble_adv", " _OPTION__1__________   - %d",second_char);
+              
+        if (second_char == 0) {
+          id(select_relay_on).state =id(selected_relay3);
+        } else if (second_char == 1) {
+          id(select_relay_on).state = id(selected_relay2);
+        } else if (second_char == 2) {
+          id(select_relay_on).state = id(selected_relay1);
+        } else if (second_char == 3) {
+          id(select_relay_on).state = id(selected_relay0);
+        } else if (second_char == 4) {
+          id(select_relay_on).state = id(selected_relay4);
+        } else if (second_char == 5) {
+          id(select_relay_on).state = id(selected_relay5);
+        } else if (second_char == 6) {
+          id(select_relay_on).state = id(selected_relay6);
+        } else if (second_char == 7) {
+          id(select_relay_on).state = id(selected_relay7);
+        }         
 
-            }            
-
-         }
-         else
-         {
-            
-            ESP_LOGD("ble_adv", " _OPTION_0___________   - %d",second_char);
-
-
-            if (second_char == 0) {
-              id(relay_3).turn_off();
-            } else if (second_char == 1) {
-              id(relay_2).turn_off();
-            } else if (second_char == 2) {
-              id(relay_1).turn_off();
-            } else if (second_char == 3) {
-              id(relay_0).turn_off();
-            } else if (second_char == 4) {
-              id(relay_7).turn_off();
-            } else if (second_char == 5) {
-              id(relay_6).turn_off();
-            } else if (second_char == 6) {
-              id(relay_5).turn_off();
-            } else if (second_char == 7) {
-              id(relay_4).turn_off();
-            } else if (second_char == 9) {
-              id(OPTO_1).turn_off();
-            }
-        
-          }
+ 
+ 
           
          // ESP_LOGD("ble_adv", " ___________________   - %d",id(select_relay_on).state);
+    - script.execute: control_relay_toggle
